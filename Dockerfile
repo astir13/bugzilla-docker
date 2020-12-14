@@ -4,6 +4,7 @@ LABEL version 0.2
 LABEL description="Docker image for bugzilla on Ubuntu 20.04 using PerlCGI/Apache2"
 
 ENV bugzilla_branch=release-5.0-stable
+ENV APACHE_USER=www-data
 
 # disable prompt during package install
 ARG DEBIAN_FRONTEND=noninteractive
@@ -60,6 +61,9 @@ RUN apt-get install -y \
       libfile-mimeinfo-perl \
       libhtml-formattext-withlinks-perl \
       libgd-dev \
+      libcache-memcached-perl \
+      libfile-copy-recursive-perl \
+      libdbd-sqlite3-perl \
       libmysqlclient-dev \
       graphviz \
       sphinx-common \
@@ -73,8 +77,9 @@ RUN apt clean
 
 # prepare the entrypoint script just to start the supervisord
 ADD entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chmod 700 /entrypoint.sh
 ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+RUN chmod 700 /etc/supervisor/conf.d/supervisord.conf
 
 # for apache2 web server
 EXPOSE 80
@@ -101,6 +106,8 @@ RUN ./checksetup.pl  # generates localconfig file
 
 # make the images available for backup and restore
 VOLUME /var/www/html/bugzilla/images
+VOLUME /var/www/html/bugzilla/data 
+VOLUME /var/www/html/bugzilla/lib
 
 # start the supervisord
 WORKDIR /tmp
