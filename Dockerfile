@@ -71,6 +71,7 @@ RUN apt-get install -y \
       libemail-address-perl \
       libemail-reply-perl \
       apache2 \
+      postfix \
       git
 RUN rm -rf /var/lib/apt/lists/*
 RUN apt clean

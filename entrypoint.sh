@@ -33,5 +33,52 @@ cat /tmp/checksetup_answers.txt
 ./checksetup.pl /tmp/checksetup_answers.txt # generates localconfig file
 # rm /tmp/checksetup_answers.txt
 
+# ------------------------- SECTION 2 ----------------------------------
+# setup postfix to receive mails from git to update bug comments from git commits
+# ----------------------------------------------------------------------
+if [ -z "$POSTFIX_HOSTNAME" -a -z "$POSTFIX_NETWORKS" ]; then
+	    echo >&2 'error: postfix option missing '
+	        echo >&2 '  You need to specify POSTFIX_HOSTNAME and POSTFIX_NETWORKS for receiving mails from a local git server'
+		    exit 1
+fi
+
+# Create postfix folders
+mkdir -p /var/spool/postfix/
+mkdir -p /var/spool/postfix/pid
+
+# Disable SMTPUTF8, because libraries (ICU) are missing in Alpine
+postconf -e "smtputf8_enable=no"
+
+# Log to stdout
+postconf -e "maillog_file=/dev/stdout"
+
+# Update aliases database. It's not used, but postfix complains if the .db file is missing
+postalias /etc/postfix/aliases
+
+# local mail delivery
+postconf -e "mydestination=${POSTFIX_HOSTNNAME}"
+
+# Limit message size to 1MB
+postconf -e "message_size_limit=1024000"
+
+# Reject invalid HELOs
+postconf -e "smtpd_delay_reject=yes"
+postconf -e "smtpd_helo_required=yes"
+postconf -e "smtpd_helo_restrictions=permit_mynetworks,reject_invalid_helo_hostname,permit"
+
+# Don't allow requests from outside
+postconf -e "mynetworks=${POSTFIX_NETWORKS}"
+
+# Set up hostname
+postconf -e myhostname=$POSTFIX_HOSTNAME
+
+# Do not relay mail from untrusted networks
+postconf -e "relay_domains="
+
+postconf -e "smtpd_recipient_restrictions=reject_non_fqdn_recipient,reject_unknown_recipient_domain,reject_unverified_recipient"
+
+# Use 587 (submission)
+sed -i -r -e 's/^#submission/submission/' /etc/postfix/master.cf
+
 cd /tmp
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
